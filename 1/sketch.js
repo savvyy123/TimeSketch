@@ -35,7 +35,8 @@ let sounds = [];
 let currentSound = null;
 let stopTimer = null;
 let fadeOutTimer = null;
-const CLIP_DURATION = 30;
+let newSound641 = null; // 新規録音 641.mp3用
+const CLIP_DURATION = 10; // 10秒に変更
 const FADE_DURATION = 1.5;
 const HIT_RADIUS = 60;
 const CLOCK_RADIUS = 50;
@@ -61,7 +62,8 @@ function preload() {
     for (let entry of SOUND_ENTRIES) {
         sounds.push(loadSound(entry.file));
     }
-    titleFont = loadFont("https://raw.githubusercontent.com/KazukiKimuraJP/KazukiReiwa/main/Fonts/KazukiReiwa%20-%20Regular.ttf");
+    newSound641 = loadSound("sounds/新規録音 641.mp3");
+    titleFont = loadFont("assets/KazukiReiwa/Fonts/KazukiReiwa - Regular.ttf");
 }
 
 let isSaving = false;
@@ -87,9 +89,13 @@ function layoutPoints(targetWidth, targetHeight) {
     const h = targetHeight;
 
     entries.push({ time: "21時00分", file: null, minutes: 21 * 60, isExtra: true });
+    sounds.push(newSound641);  // 新規録音 641.mp3を追加
     entries.push({ time: "21時30分", file: null, minutes: 21 * 60 + 30, isExtra: true });
+    sounds.push(newSound641);  // 新規録音 641.mp3を追加
     entries.push({ time: "22時00分", file: null, minutes: 22 * 60, isExtra: true });
+    sounds.push(newSound641);  // 新規録音 641.mp3を追加
     entries.push({ time: "23時00分", file: null, minutes: 23 * 60, isExtra: true });
+    sounds.push(newSound641);  // 新規録音 641.mp3を追加
     entries.push({ time: "24時00分", file: null, minutes: 24 * 60, isExtra: true, isGray: true });
     entries.push({ time: "24時30分", file: null, minutes: 24 * 60 + 30, isExtra: true, isGray: true });
     const n = entries.length;
@@ -1236,12 +1242,27 @@ async function saveForPrint() {
     // 非同期で保存処理を実行
     await new Promise(resolve => setTimeout(resolve, 100));
 
+<<<<<<< HEAD
     // 画面の論理サイズを基準に描画し、A3サイズに出力
     // A3の比率(297:420)で出力
     const logicalW = width;
     const logicalH = height;
     const printWidth = A3_WIDTH_PX;
     const printHeight = A3_HEIGHT_PX;
+=======
+    // A3を縦に2枚連結した比率 (297mm × 840mm) に合わせて論理サイズを決める
+    // 画面の幅を基準に、高さをA3×2枚分の比率に正規化してから描画する
+    // これにより各分割画像が正確にA3比率(297:420)になる
+    const logicalW = width;
+    const logicalH = logicalW * (A3_HEIGHT_MM * 2) / A3_WIDTH_MM;
+    const scale = A3_WIDTH_PX / logicalW;
+    const printWidth = A3_WIDTH_PX;
+    const printHeight = A3_HEIGHT_PX * 2;
+
+    // 印刷用に論理サイズでポイントを再レイアウト
+    const savedPoints = points.map(p => ({ ...p }));
+    layoutPoints(logicalW, logicalH);
+>>>>>>> 44ea92a (aa)
 
     let pg = createGraphics(printWidth, printHeight);
     pg.angleMode(RADIANS);
@@ -1264,17 +1285,20 @@ async function saveForPrint() {
 
     console.log("描画完了。画像を分割して保存します。");
 
-    // ページ分割: 画面と同じ縦横比のままA3比率2枚に分ける
-    const halfH = Math.round(printHeight / 2);
-    let topImg = realPg.get(0, 0, printWidth, halfH);
+    // ページ分割: A3 1枚分(A3_HEIGHT_PX)ずつ正確に切り出す
+    let topImg = realPg.get(0, 0, A3_WIDTH_PX, A3_HEIGHT_PX);
     topImg.save('artwork_part1', 'png');
 
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    let bottomImg = realPg.get(0, halfH, printWidth, printHeight - halfH);
+    let bottomImg = realPg.get(0, A3_HEIGHT_PX, A3_WIDTH_PX, A3_HEIGHT_PX);
     bottomImg.save('artwork_part2', 'png');
 
     pg.remove();
+
+    // 画面用のレイアウトに戻す
+    points.length = 0;
+    for (const p of savedPoints) points.push(p);
 
     console.log("保存が完了しました。");
 
