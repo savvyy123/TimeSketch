@@ -67,6 +67,9 @@ function preload() {
 }
 
 let isSaving = false;
+let isPlaying = false;
+let playingIndex = -1;
+let isClockRotating = false;
 
 function setup() {
     createCanvas(windowWidth, windowHeight * 4);
@@ -214,11 +217,14 @@ function drawScene(pg) {
         drawSagTail(pg, last);
     }
 
-    for (let p of points) {
+    for (let i = 0; i < points.length; i++) {
+        const p = points[i];
         // 24時以降は灰色固定、それ以外はドットの位置で色を決定(境界をまたぐ時計が反転)
         const inkColor = p.isGray ? POST_MIDNIGHT_INK : null;
+        isClockRotating = isPlaying && i === playingIndex;
         drawClockAt(pg, p.x, p.y, p.minutes, inkColor);
     }
+    isClockRotating = false;
 
     drawBoundaryGradient(pg, blackTop, grayTop);
 
@@ -431,7 +437,7 @@ function drawGradientBand(pg, centerY, blackTop, grayTop, bandHalf, numParticles
     for (let i = 0; i < numParticles; i++) {
         const dy = random(-bandHalf, bandHalf);
         const norm = Math.abs(dy) / bandHalf;
-        if (Math.random() < norm) continue;
+        if (random() < norm) continue;
         const x = random(0, pg.width);
         const y = centerY + dy;
         let inkColor = inkColorForY(y, blackTop, grayTop);
@@ -782,19 +788,58 @@ function drawHashtagAt(pg, targetMin, label, side = "left", offset = 16) {
 
 function drawSagCurve(pg, p1, p2, blackTop) {
     const dx = p2.x - p1.x;
-    const sagAmount = Math.abs(dx) * 0.35 + 60;
-    const cx = (p1.x + p2.x) / 2;
-    const cy = Math.max(p1.y, p2.y) + sagAmount;
+    const dy = p2.y - p1.y;
+    const sagAmount = Math.abs(dx) * 0.28 + 50;
+
+    // 鎖が垂れるような左右非対称の三次ベジェ
+    // 制御点を1/3・2/3地点に置き、各端点近くで接線が下向きになるよう配置
+    const c1x = p1.x + dx * 0.28;
+    const c1y = p1.y + sagAmount * 1.0;
+    const c2x = p1.x + dx * 0.72;
+    const c2y = p2.y + sagAmount * 0.55;
+
     pg.noFill();
     pg.strokeWeight(1.2);
-    const STEPS = 80;
+    const STEPS = 100;
     let prevX = p1.x;
     let prevY = p1.y;
+
     for (let s = 1; s <= STEPS; s++) {
         const u = s / STEPS;
         const oneU = 1 - u;
-        const x = oneU * oneU * p1.x + 2 * oneU * u * cx + u * u * p2.x;
-        const y = oneU * oneU * p1.y + 2 * oneU * u * cy + u * u * p2.y;
+        const baseX = oneU * oneU * oneU * p1.x
+            + 3 * oneU * oneU * u * c1x
+            + 3 * oneU * u * u * c2x
+            + u * u * u * p2.x;
+        const baseY = oneU * oneU * oneU * p1.y
+            + 3 * oneU * oneU * u * c1y
+            + 3 * oneU * u * u * c2y
+            + u * u * u * p2.y;
+
+        // 法線方向(ノイズ方向)
+        const tanX = 3 * oneU * oneU * (c1x - p1.x)
+            + 6 * oneU * u * (c2x - c1x)
+            + 3 * u * u * (p2.x - c2x);
+        const tanY = 3 * oneU * oneU * (c1y - p1.y)
+            + 6 * oneU * u * (c2y - c1y)
+            + 3 * u * u * (p2.y - c2y);
+        const tLen = Math.sqrt(tanX * tanX + tanY * tanY) || 1;
+        const nx = -tanY / tLen;
+        const ny = tanX / tLen;
+
+        // 黒背景上のみパーリンノイズを乗せる(境界をまたぐ際に滑らかにフェードイン)
+        let x = baseX;
+        let y = baseY;
+        const fadeBand = 40;
+        const blackness = constrain((baseY - blackTop) / fadeBand, 0, 1);
+        if (blackness > 0) {
+            const taper = Math.sin(u * Math.PI);
+            const n = (noise(baseX * NOISE_SCALE, baseY * NOISE_SCALE) - 0.5) * 2;
+            const off = n * NOISE_AMP_STRONG * taper * blackness;
+            x += nx * off;
+            y += ny * off;
+        }
+
         pg.stroke(y >= blackTop ? 255 : 0);
         pg.line(prevX, prevY, x, y);
         prevX = x;
@@ -1004,6 +1049,35 @@ function drawHourMarkers(pg) {
             const targetMin = h * 60;
             if (targetMin < p1.minutes || targetMin > p2.minutes) continue;
             let t = (targetMin - p1.minutes) / (p2.minutes - p1.minutes);
+            const p1Hour = Math.floor(p1.minutes / 60);
+            const p2Hour = Math.floor(p2.minutes / 60);
+            // 同じ"時"のクロックがあるなら、その外側(線とは反対側)にラベルを置く
+            const sameHourClock = p2Hour === h ? p2 : (p1Hour === h ? p1 : null);
+            if (sameHourClock) {
+                const otherClock = sameHourClock === p2 ? p1 : p2;
+                const onLeftOfOther = sameHourClock.x < otherClock.x;
+                const offset = CLOCK_RADIUS * 1.5;
+                const labelY = sameHourClock.y - CLOCK_RADIUS * 1.1;
+                const inkColor = inkColorForY(labelY, blackTop, grayTop, pg.height);
+                const isPostMidnightLabel = targetMin >= 24 * 60;
+                const labelColor = isPostMidnightLabel || labelY >= grayTop ? POST_MIDNIGHT_INK : inkColor;
+                if (isPostMidnightLabel || (labelY >= blackTop && labelY < grayTop)) {
+                    pg.textFont("sans-serif");
+                } else {
+                    pg.textFont(titleFont);
+                }
+                pg.fill(labelColor);
+                if (onLeftOfOther) {
+                    // 同じ時のクロックが左側 → さらに左にラベル(右揃え)
+                    pg.textAlign(RIGHT, CENTER);
+                    pg.text(`${h}:00`, sameHourClock.x - offset, labelY);
+                } else {
+                    pg.textAlign(LEFT, CENTER);
+                    pg.text(`${h}:00`, sameHourClock.x + offset, labelY);
+                }
+                pg.textAlign(LEFT, CENTER);
+                continue;
+            }
             const segLen = dist(p1.x, p1.y, p2.x, p2.y);
             if (segLen > 0) {
                 const minT = minDistFromClock / segLen;
@@ -1174,8 +1248,14 @@ function drawCircleAsDots(pg, cx, cy, r, inkColor = 0) {
 function drawShapeOutline(pg, x, y, inkColor = 0) {
     const idx = dotShapeIndex % dotShapes.length;
     const shape = dotShapes[idx];
-    const rot = dotRotations[idx];
+    let rot = dotRotations[idx];
     dotShapeIndex++;
+    if (isClockRotating) {
+        // 各ドットごとに少しずつ違う速度で回転(idxを使って決定的に分散)
+        const speed = 0.04 + (idx % 7) * 0.008;
+        const dir = (idx % 2 === 0) ? 1 : -1;
+        rot += frameCount * speed * dir;
+    }
     const half = DOT_SIZE / 2;
     // inkColor=null の場合はドット位置で色判定(境界をまたぐ時計の色反転)
     let actualColor = inkColor;
@@ -1336,12 +1416,21 @@ function playRandomClip(index) {
     snd.setVolume(1, FADE_DURATION);
     currentSound = snd;
 
+    isPlaying = true;
+    playingIndex = index;
+    frameRate(30);
+    loop();
+
     fadeOutTimer = setTimeout(() => {
         snd.setVolume(0, FADE_DURATION);
     }, (CLIP_DURATION - FADE_DURATION) * 1000);
 
     stopTimer = setTimeout(() => {
         if (snd.isPlaying()) snd.stop();
+        isPlaying = false;
+        playingIndex = -1;
+        noLoop();
+        redraw();
     }, CLIP_DURATION * 1000);
 }
 
