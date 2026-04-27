@@ -1,0 +1,8 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* スクロールバーを非表示にする */
+}
+canvas {
+    display: block; /* キャンバスの下に余白ができないようにする */
+}

@@ -1,0 +1,66 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f0f0f0;
+}
+
+body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 100vh;
+    padding: 16px 16px 88px;
+}
+
+canvas {
+    display: block;
+    margin: 0 auto;
+}
+
+#controls {
+    position: fixed;
+    left: 50%;
+    bottom: 12px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 1px solid #d0d0d0;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(3px);
+}
+
+#sizeInfo {
+    font-size: 13px;
+    color: #333;
+    white-space: nowrap;
+}
+
+#saveA3Btn {
+    border: none;
+    border-radius: 7px;
+    background: #111;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 12px;
+    cursor: pointer;
+}
+
+#saveA3Btn:hover {
+    background: #2a2a2a;
+}
+
+#saveA3Btn:active {
+    transform: translateY(1px);
+}
