@@ -1242,14 +1242,6 @@ async function saveForPrint() {
     // 非同期で保存処理を実行
     await new Promise(resolve => setTimeout(resolve, 100));
 
-<<<<<<< HEAD
-    // 画面の論理サイズを基準に描画し、A3サイズに出力
-    // A3の比率(297:420)で出力
-    const logicalW = width;
-    const logicalH = height;
-    const printWidth = A3_WIDTH_PX;
-    const printHeight = A3_HEIGHT_PX;
-=======
     // A3を縦に2枚連結した比率 (297mm × 840mm) に合わせて論理サイズを決める
     // 画面の幅を基準に、高さをA3×2枚分の比率に正規化してから描画する
     // これにより各分割画像が正確にA3比率(297:420)になる
@@ -1262,7 +1254,6 @@ async function saveForPrint() {
     // 印刷用に論理サイズでポイントを再レイアウト
     const savedPoints = points.map(p => ({ ...p }));
     layoutPoints(logicalW, logicalH);
->>>>>>> 44ea92a (aa)
 
     let pg = createGraphics(printWidth, printHeight);
     pg.angleMode(RADIANS);
