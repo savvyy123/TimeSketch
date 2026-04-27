@@ -61,7 +61,7 @@ function preload() {
     for (let entry of SOUND_ENTRIES) {
         sounds.push(loadSound(entry.file));
     }
-    titleFont = loadFont("assets/KazukiReiwa/Fonts/KazukiReiwa - Regular.ttf");
+    titleFont = loadFont("https://raw.githubusercontent.com/KazukiKimuraJP/KazukiReiwa/main/Fonts/KazukiReiwa%20-%20Regular.ttf");
 }
 
 let isSaving = false;
@@ -1236,13 +1236,12 @@ async function saveForPrint() {
     // 非同期で保存処理を実行
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // 画面の論理サイズを基準に描画し、A3サイズに均等スケールする
-    // (オブジェクトの大きさ・比率は画面と完全に一致したまま高解像度化)
+    // 画面の論理サイズを基準に描画し、A3サイズに出力
+    // A3の比率(297:420)で出力
     const logicalW = width;
     const logicalH = height;
-    const scale = A3_WIDTH_PX / logicalW;
     const printWidth = A3_WIDTH_PX;
-    const printHeight = Math.round(logicalH * scale);
+    const printHeight = A3_HEIGHT_PX;
 
     let pg = createGraphics(printWidth, printHeight);
     pg.angleMode(RADIANS);
